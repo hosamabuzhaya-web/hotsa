@@ -173,6 +173,18 @@ export function DataProvider({ children }) {
     }
   };
 
+  const deleteTransaction = async (txId) => {
+    try {
+      setTransactions(prev => prev.filter(t => t.id !== txId));
+      const { error } = await supabase.from('transactions').delete().eq('id', txId);
+      if (error) throw error;
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      fetchData();
+    }
+  };
+
   const addEmployeesBatch = async (employeesList) => {
     try {
       const { error } = await supabase.from('employees').insert(employeesList);
@@ -225,6 +237,7 @@ export function DataProvider({ children }) {
     loans,
     loading,
     addTransaction,
+    deleteTransaction,
     addBranch,
     addLoan,
     deleteLoan,

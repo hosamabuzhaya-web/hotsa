@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { Plus, CreditCard, ArrowDownRight, Search, PiggyBank, Briefcase } from 'lucide-react';
+import { Plus, CreditCard, ArrowDownRight, Search, PiggyBank, Briefcase, Trash2 } from 'lucide-react';
 import LoanDetailsModal from '../components/LoanDetailsModal';
 
 export default function ExpensesLoans() {
-  const { transactions, branches, loans, addTransaction, addLoan } = useData();
+  const { transactions, branches, loans, addTransaction, addLoan, deleteTransaction } = useData();
   
   const [activeTab, setActiveTab] = useState('expenses'); // 'expenses' or 'loans'
   
@@ -76,6 +76,12 @@ export default function ExpensesLoans() {
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(amount);
+  };
+
+  const handleDeleteExpense = (id) => {
+    if (window.confirm("האם אתה בטוח שברצונך למחוק תנועה זו?")) {
+      deleteTransaction(id);
+    }
   };
 
   // Helper to calculate loan progress for the cards
@@ -162,6 +168,7 @@ export default function ExpensesLoans() {
                   <th style={{ padding: '1rem', fontWeight: 500 }}>סוג הוצאה</th>
                   <th style={{ padding: '1rem', fontWeight: 500 }}>תיאור (אסמכתא)</th>
                   <th style={{ padding: '1rem', fontWeight: 500 }}>סכום</th>
+                  <th style={{ padding: '1rem', fontWeight: 500, textAlign: 'center' }}>פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -181,15 +188,31 @@ export default function ExpensesLoans() {
                       {tx.description}
                       {tx.loan_id && <span style={{fontSize: '0.8rem', display: 'block', color: 'var(--accent-warning)', opacity: 0.8}}>נוצר אוטומטית ע"י מערכת ההלוואות</span>}
                     </td>
-                    <td style={{ padding: '1rem', fontWeight: 'bold', color: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <ArrowDownRight size={16} />
-                      {formatCurrency(tx.amount)}
+                    <td style={{ padding: '1rem', fontWeight: 'bold', color: 'var(--accent-danger)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <ArrowDownRight size={16} />
+                        {formatCurrency(tx.amount)}
+                      </div>
+                    </td>
+                    <td style={{ padding: '1rem', textAlign: 'center' }}>
+                      {tx.loan_id ? (
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }} title="למחיקת תשלום זה, עליך למחוק את ההלוואה ממסך ההלוואות">מקושר להלוואה</span>
+                      ) : (
+                        <button 
+                          onClick={() => handleDeleteExpense(tx.id)}
+                          className="hover:text-danger"
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'color 0.2s' }}
+                          title="מחק הוצאה"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
                 {expenseTransactions.length === 0 && (
                   <tr>
-                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                       לא נמצאו תנועות הוצאה.
                     </td>
                   </tr>
