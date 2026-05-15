@@ -11,6 +11,7 @@ export function DataProvider({ children }) {
   const [branches, setBranches] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch data on mount and when auth state changes
@@ -21,12 +22,15 @@ export function DataProvider({ children }) {
     const txSubscription = supabase
       .channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
-        fetchData(); // Simplest approach: refetch all on any change
+        fetchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'branches' }, () => {
         fetchData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, () => {
         fetchData();
       })
       .subscribe();
@@ -40,19 +44,20 @@ export function DataProvider({ children }) {
     try {
       setLoading(true);
       
-      const [branchesRes, txRes, empRes] = await Promise.all([
+      const [branchesRes, txRes, empRes, loansRes] = await Promise.all([
         supabase.from('branches').select('*').order('name'),
         supabase.from('transactions').select('*').order('date', { ascending: false }),
-        supabase.from('employees').select('*').order('name')
+        supabase.from('employees').select('*').order('name'),
+        supabase.from('loans').select('*').order('start_date', { ascending: false })
       ]);
       
       if (branchesRes.error) throw branchesRes.error;
       if (txRes.error) throw txRes.error;
-      // if (empRes.error) throw empRes.error; // Ignoring error if table doesn't exist yet
 
       setBranches(branchesRes.data || []);
       setTransactions(txRes.data || []);
       setEmployees(empRes.data || []);
+      setLoans(loansRes.data || []);
     } catch (error) {
       console.error("Error fetching data from Supabase:", error);
     } finally {
@@ -97,6 +102,77 @@ export function DataProvider({ children }) {
     }
   };
 
+  const addLoan = async (loanData) => {
+    try {
+      // 1. Insert loan
+      const { data: newLoan, error: loanError } = await supabase
+        .from('loans')
+        .insert([{
+          name: loanData.name,
+          principal_amount: Number(loanData.principal_amount),
+          interest_amount: Number(loanData.interest_amount),
+          total_payments: Number(loanData.total_payments),
+          start_date: loanData.start_date,
+          branch_id: loanData.branch_id ? Number(loanData.branch_id) : null
+        }])
+        .select()
+        .single();
+        
+      if (loanError) throw loanError;
+
+      // 2. Generate future transactions for repayment
+      const totalAmount = Number(loanData.principal_amount) + Number(loanData.interest_amount);
+      const monthlyPayment = totalAmount / Number(loanData.total_payments);
+      
+      const transactionsToInsert = [];
+      let currentDate = new Date(loanData.start_date);
+
+      for (let i = 1; i <= Number(loanData.total_payments); i++) {
+        transactionsToInsert.push({
+          date: currentDate.toISOString().split('T')[0],
+          amount: monthlyPayment,
+          branch_id: loanData.branch_id ? Number(loanData.branch_id) : null,
+          category: 'הלוואות בנק',
+          type: 'loan_repayment',
+          description: `${loanData.name} - תשלום ${i} מתוך ${loanData.total_payments}`,
+          loan_id: newLoan.id
+        });
+        
+        // Add 1 month exactly
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+
+      // 3. Insert all transactions to cascade into forecasting
+      const { error: txError } = await supabase
+        .from('transactions')
+        .insert(transactionsToInsert);
+        
+      if (txError) {
+        console.error("Failed inserting transactions, deleting loan to rollback", txError);
+        await supabase.from('loans').delete().eq('id', newLoan.id);
+        throw txError;
+      }
+      
+      fetchData();
+    } catch (error) {
+      console.error("Error adding loan:", error);
+      alert("שגיאה ביצירת ההלוואה. אנא ודא שהרצת את פקודת ה-SQL לעדכון מסד הנתונים.");
+    }
+  };
+
+  const deleteLoan = async (loanId) => {
+    try {
+      setLoans(prev => prev.filter(l => l.id !== loanId));
+      // This will cascade delete associated transactions in DB if set up correctly
+      const { error } = await supabase.from('loans').delete().eq('id', loanId);
+      if (error) throw error;
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting loan:", error);
+      fetchData();
+    }
+  };
+
   const addEmployeesBatch = async (employeesList) => {
     try {
       const { error } = await supabase.from('employees').insert(employeesList);
@@ -109,18 +185,12 @@ export function DataProvider({ children }) {
 
   const updateEmployeeBranch = async (employeeId, branchId) => {
     try {
-      // Optimistic
       setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, branch_id: branchId } : emp));
-      
-      const { error } = await supabase
-        .from('employees')
-        .update({ branch_id: branchId })
-        .eq('id', employeeId);
-        
+      const { error } = await supabase.from('employees').update({ branch_id: branchId }).eq('id', employeeId);
       if (error) throw error;
     } catch (error) {
       console.error("Error updating employee branch:", error);
-      fetchData(); // Revert
+      fetchData();
     }
   };
 
@@ -152,9 +222,12 @@ export function DataProvider({ children }) {
     branches,
     transactions,
     employees,
+    loans,
     loading,
     addTransaction,
     addBranch,
+    addLoan,
+    deleteLoan,
     addEmployeesBatch,
     updateEmployeeBranch,
     deleteEmployee,
