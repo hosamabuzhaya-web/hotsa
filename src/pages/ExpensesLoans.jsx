@@ -26,7 +26,7 @@ export default function ExpensesLoans() {
   const [loanForm, setLoanForm] = useState({
     name: '',
     principal_amount: '',
-    interest_amount: '',
+    monthly_repayment: '', // Replaced interest_amount
     total_payments: '',
     start_date: new Date().toISOString().split('T')[0],
     branch_id: ''
@@ -46,12 +46,28 @@ export default function ExpensesLoans() {
 
   const handleLoanSubmit = async (e) => {
     e.preventDefault();
-    await addLoan(loanForm);
+    const principal = Number(loanForm.principal_amount);
+    const payments = Number(loanForm.total_payments);
+    const monthly = Number(loanForm.monthly_repayment);
+    
+    const totalAmount = monthly * payments;
+    const computedInterest = totalAmount - principal;
+
+    if (computedInterest < 0) {
+      alert('שגיאה: ההחזר החודשי שהוזן נמוך מדי ולא מכסה את סכום ההלוואה!');
+      return;
+    }
+
+    await addLoan({
+      ...loanForm,
+      interest_amount: computedInterest
+    });
+    
     setShowLoanModal(false);
     setLoanForm({
       name: '',
       principal_amount: '',
-      interest_amount: '',
+      monthly_repayment: '',
       total_payments: '',
       start_date: new Date().toISOString().split('T')[0],
       branch_id: ''
@@ -333,7 +349,7 @@ export default function ExpensesLoans() {
               <PiggyBank />
               הקמת הלוואה חדשה לתזרים
             </h3>
-            <p className="text-secondary text-sm mb-6">המערכת תייצר אוטומטית פריסת תשלומים חודשית בטבלת ההוצאות ובתזרים המזומנים החל מתאריך ההתחלה.</p>
+            <p className="text-secondary text-sm mb-6">המערכת תייצר אוטומטית פריסת תשלומים חודשית בטבלת ההוצאות ובתזרים המזומנים החל מתאריך ההתחלה ותחשב את הריבית.</p>
             
             <form onSubmit={handleLoanSubmit}>
               <div className="form-group">
@@ -349,9 +365,9 @@ export default function ExpensesLoans() {
                     value={loanForm.principal_amount} onChange={e => setLoanForm({...loanForm, principal_amount: e.target.value})} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">סך הריבית (₪)</label>
-                  <input type="number" className="form-control" required min="0" placeholder="5000"
-                    value={loanForm.interest_amount} onChange={e => setLoanForm({...loanForm, interest_amount: e.target.value})} />
+                  <label className="form-label">החזר חודשי (₪)</label>
+                  <input type="number" className="form-control" required min="1" placeholder="5726"
+                    value={loanForm.monthly_repayment} onChange={e => setLoanForm({...loanForm, monthly_repayment: e.target.value})} />
                 </div>
               </div>
 
@@ -380,12 +396,18 @@ export default function ExpensesLoans() {
               </div>
 
               {/* Summary Box */}
-              {loanForm.principal_amount && loanForm.total_payments && (
+              {loanForm.principal_amount && loanForm.total_payments && loanForm.monthly_repayment && (
                 <div style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px', marginTop: '1rem' }}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-secondary">סך הכל החזר לבנק:</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {formatCurrency(Number(loanForm.monthly_repayment) * Number(loanForm.total_payments))}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-secondary">החזר חודשי משוער לתזרים:</span>
+                    <span className="text-secondary">סך ריבית שיחושב:</span>
                     <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--accent-warning)' }}>
-                      {formatCurrency((Number(loanForm.principal_amount) + Number(loanForm.interest_amount || 0)) / Number(loanForm.total_payments))}
+                      {formatCurrency((Number(loanForm.monthly_repayment) * Number(loanForm.total_payments)) - Number(loanForm.principal_amount))}
                     </span>
                   </div>
                 </div>
