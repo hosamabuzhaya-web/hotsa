@@ -23,23 +23,38 @@ export default function Payroll() {
       setIsUploading(true);
       const data = await parseExcelFile(file);
       
-      // Look for a column that contains the name (e.g. "שם", "שם עובד", "Name", "עובד")
+      // Look for columns that contain the relevant data
       const employeesToAdd = [];
       
       data.forEach(row => {
-        // Find the first key that looks like a name column
-        const nameKey = Object.keys(row).find(key => 
-          key.includes('שם') || key.includes('עובד') || key.toLowerCase().includes('name')
-        );
+        // Find keys dynamically
+        const nameKey = Object.keys(row).find(key => key.includes('שם') || key.includes('עובד') || key.toLowerCase().includes('name'));
+        const roleKey = Object.keys(row).find(key => key.includes('תפקיד') || key.includes('תאור') || key.toLowerCase().includes('role'));
+        const branchKey = Object.keys(row).find(key => key.includes('סניף') || key.toLowerCase().includes('branch'));
         
-        const name = nameKey ? row[nameKey] : Object.values(row)[0]; // Fallback to first column
+        const name = nameKey ? row[nameKey] : Object.values(row)[0]; 
+        const role = roleKey ? row[roleKey] : 'עובד כללי';
+        const branchString = branchKey ? String(row[branchKey]).trim() : '';
+        
+        let matchedBranchId = null;
+        
+        // Try to auto-match branch string from excel with existing branches in system
+        if (branchString) {
+          const matchedBranch = branches.find(b => 
+            b.name.includes(branchString) || branchString.includes(b.name)
+          );
+          if (matchedBranch) {
+            matchedBranchId = matchedBranch.id;
+          }
+        }
         
         if (name && typeof name === 'string' && name.trim().length > 0) {
           // Check if employee already exists
           if (!employees.find(emp => emp.name === name.trim())) {
             employeesToAdd.push({
               name: name.trim(),
-              role: 'עובד כללי'
+              role: role,
+              branch_id: matchedBranchId
             });
           }
         }
