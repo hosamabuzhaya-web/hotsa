@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useData } from '../context/DataContext';
-import { Building2, TrendingUp, TrendingDown, Store } from 'lucide-react';
+import { Building2, TrendingUp, TrendingDown, Store, Search } from 'lucide-react';
+import BranchDetailsModal from '../components/BranchDetailsModal';
 
 export default function Branches() {
   const { branches, transactions } = useData();
+  const [selectedBranch, setSelectedBranch] = useState(null);
 
   const getBranchStats = (branchId) => {
     const branchTxs = transactions.filter(t => t.branch_id === branchId);
@@ -20,7 +22,7 @@ export default function Branches() {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in relative">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>רווחיות סניפים (P&L)</h2>
@@ -34,7 +36,13 @@ export default function Branches() {
           const isProfitable = stats.profit >= 0;
 
           return (
-            <div key={branch.id} className="glass-panel" style={{ padding: '1.5rem' }}>
+            <div 
+              key={branch.id} 
+              className="glass-panel hover-glow" 
+              style={{ padding: '1.5rem', cursor: 'pointer', transition: 'all 0.2s ease' }}
+              onClick={() => setSelectedBranch(branch)}
+              title="לחץ לצפייה בנתונים מורחבים"
+            >
               <div className="flex justify-between items-center mb-4 pb-4" style={{ borderBottom: '1px solid var(--border-glass)' }}>
                 <div className="flex items-center gap-3">
                   <div style={{ background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '12px' }}>
@@ -47,6 +55,7 @@ export default function Branches() {
                     </span>
                   </div>
                 </div>
+                <Search size={16} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
               </div>
 
               <div className="space-y-4">
@@ -88,6 +97,14 @@ export default function Branches() {
           );
         })}
       </div>
+
+      {/* Drill-down Modal */}
+      {selectedBranch && (
+        <BranchDetailsModal 
+          branch={selectedBranch} 
+          onClose={() => setSelectedBranch(null)} 
+        />
+      )}
     </div>
   );
 }
