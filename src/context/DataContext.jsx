@@ -10,6 +10,7 @@ export function useData() {
 export function DataProvider({ children }) {
   const [branches, setBranches] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch data on mount and when auth state changes
@@ -25,6 +26,9 @@ export function DataProvider({ children }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'branches' }, () => {
         fetchData();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'employees' }, () => {
+        fetchData();
+      })
       .subscribe();
 
     return () => {
@@ -36,16 +40,19 @@ export function DataProvider({ children }) {
     try {
       setLoading(true);
       
-      const [branchesRes, txRes] = await Promise.all([
+      const [branchesRes, txRes, empRes] = await Promise.all([
         supabase.from('branches').select('*').order('name'),
-        supabase.from('transactions').select('*').order('date', { ascending: false })
+        supabase.from('transactions').select('*').order('date', { ascending: false }),
+        supabase.from('employees').select('*').order('name')
       ]);
       
       if (branchesRes.error) throw branchesRes.error;
       if (txRes.error) throw txRes.error;
+      // if (empRes.error) throw empRes.error; // Ignoring error if table doesn't exist yet
 
       setBranches(branchesRes.data || []);
       setTransactions(txRes.data || []);
+      setEmployees(empRes.data || []);
     } catch (error) {
       console.error("Error fetching data from Supabase:", error);
     } finally {
@@ -90,6 +97,44 @@ export function DataProvider({ children }) {
     }
   };
 
+  const addEmployeesBatch = async (employeesList) => {
+    try {
+      const { error } = await supabase.from('employees').insert(employeesList);
+      if (error) throw error;
+      fetchData();
+    } catch (error) {
+      console.error("Error adding employees:", error);
+    }
+  };
+
+  const updateEmployeeBranch = async (employeeId, branchId) => {
+    try {
+      // Optimistic
+      setEmployees(prev => prev.map(emp => emp.id === employeeId ? { ...emp, branch_id: branchId } : emp));
+      
+      const { error } = await supabase
+        .from('employees')
+        .update({ branch_id: branchId })
+        .eq('id', employeeId);
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error updating employee branch:", error);
+      fetchData(); // Revert
+    }
+  };
+
+  const deleteEmployee = async (employeeId) => {
+    try {
+      setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+      const { error } = await supabase.from('employees').delete().eq('id', employeeId);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      fetchData();
+    }
+  };
+
   const getDashboardStats = () => {
     const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
     const totalExpenses = transactions.filter(t => t.type === 'expense' || t.type === 'loan_repayment').reduce((sum, t) => sum + Number(t.amount), 0);
@@ -106,9 +151,13 @@ export function DataProvider({ children }) {
   const value = {
     branches,
     transactions,
+    employees,
     loading,
     addTransaction,
     addBranch,
+    addEmployeesBatch,
+    updateEmployeeBranch,
+    deleteEmployee,
     getDashboardStats,
     refreshData: fetchData
   };
