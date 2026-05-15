@@ -1,6 +1,6 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
-import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Percent, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard() {
@@ -78,7 +78,7 @@ export default function Dashboard() {
           <div className="flex justify-between items-center mb-2">
             <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>שולי רווח (%)</h3>
             <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.5rem', borderRadius: '50%', color: 'var(--accent-warning)' }}>
-              <DollarSign size={20} />
+              <Percent size={20} />
             </div>
           </div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-warning)' }}>

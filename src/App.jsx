@@ -7,6 +7,7 @@ import ExpensesLoans from './pages/ExpensesLoans';
 import Branches from './pages/Branches';
 import Payroll from './pages/Payroll';
 import Forecasting from './pages/Forecasting';
+import SettingsPage from './pages/Settings';
 import { 
   LayoutDashboard, 
   Wallet, 
@@ -69,6 +70,8 @@ function App() {
         return <Payroll />;
       case 'forecasting':
         return <Forecasting />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return <Dashboard />;
     }
@@ -159,7 +162,12 @@ function App() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="btn btn-outline" style={{ padding: '0.5rem', borderRadius: '50%' }}>
+            <button 
+              className={`btn btn-outline ${activePage === 'settings' ? 'active' : ''}`}
+              style={{ padding: '0.5rem', borderRadius: '50%', background: activePage === 'settings' ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+              onClick={() => setActivePage('settings')}
+              title="הגדרות מערכת"
+            >
               <Settings size={20} />
             </button>
           </div>
