@@ -49,13 +49,27 @@ export default function Payroll() {
         }
         
         if (name && typeof name === 'string' && name.trim().length > 0) {
-          // Check if employee already exists
-          if (!employees.find(emp => emp.name === name.trim())) {
+          const cleanName = name.trim();
+          
+          // Check if employee already exists in DB (case and space insensitive)
+          const existsInDb = employees.find(emp => 
+            emp.name && emp.name.trim().toLowerCase() === cleanName.toLowerCase()
+          );
+          
+          // Check if we already added this employee in the current Excel loop
+          const existsInBatch = employeesToAdd.find(emp => 
+            emp.name.toLowerCase() === cleanName.toLowerCase()
+          );
+
+          if (!existsInDb && !existsInBatch) {
             employeesToAdd.push({
-              name: name.trim(),
+              name: cleanName,
               role: role,
               branch_id: matchedBranchId
             });
+          } else if (existsInDb && matchedBranchId && existsInDb.branch_id !== matchedBranchId) {
+             // Optional: if they exist but branch changed in Excel, we could update it. 
+             // For now we just prevent duplicates.
           }
         }
       });
