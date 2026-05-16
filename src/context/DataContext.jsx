@@ -113,6 +113,7 @@ export function DataProvider({ children }) {
           interest_amount: Number(loanData.interest_amount),
           total_payments: Number(loanData.total_payments),
           start_date: loanData.start_date,
+          billing_day: loanData.billing_day ? Number(loanData.billing_day) : null,
           branch_id: loanData.branch_id ? Number(loanData.branch_id) : null
         }])
         .select()

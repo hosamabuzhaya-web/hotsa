@@ -26,9 +26,10 @@ export default function ExpensesLoans() {
   const [loanForm, setLoanForm] = useState({
     name: '',
     principal_amount: '',
-    monthly_repayment: '', // Replaced interest_amount
+    monthly_repayment: '',
     total_payments: '',
     start_date: new Date().toISOString().split('T')[0],
+    billing_day: new Date().getDate().toString(), // יום בחודש
     branch_id: ''
   });
 
@@ -70,6 +71,7 @@ export default function ExpensesLoans() {
       monthly_repayment: '',
       total_payments: '',
       start_date: new Date().toISOString().split('T')[0],
+      billing_day: new Date().getDate().toString(),
       branch_id: ''
     });
   };
@@ -225,67 +227,79 @@ export default function ExpensesLoans() {
 
       {/* TAB: LOANS */}
       {activeTab === 'loans' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="glass-panel" style={{ padding: '1.5rem' }}>
           {loans.length === 0 ? (
-            <div className="col-span-full glass-panel py-12 text-center text-secondary">
-              <PiggyBank size={48} className="mx-auto mb-4 opacity-50 text-warning" />
-              <h3 className="text-xl mb-2">אין הלוואות פעילות</h3>
-              <p>לחץ על "הלוואה חדשה" כדי להקים הלוואה ולייצר לוח סילוקין אוטומטי לתזרים המזומנים.</p>
+            <div className="py-12 text-center">
+              <PiggyBank size={48} className="mx-auto mb-4 text-warning" style={{ opacity: 0.5 }} />
+              <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>אין הלוואות פעילות</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>לחץ על "הלוואה חדשה" כדי להקים הלוואה ולייצר לוח סילוקין אוטומטי.</p>
             </div>
           ) : (
-            loans.map(loan => {
-              const totalAmount = Number(loan.principal_amount) + Number(loan.interest_amount);
-              const { paidAmount, progress } = getLoanProgress(loan.id, totalAmount);
-              
-              return (
-                <div 
-                  key={loan.id} 
-                  className="glass-panel hover-glow" 
-                  style={{ padding: '1.5rem', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onClick={() => setSelectedLoan(loan)}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 style={{ fontSize: '1.2rem', margin: 0, fontWeight: 'bold' }}>{loan.name}</h3>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        מתאריך: {new Date(loan.start_date).toLocaleDateString('he-IL')}
-                      </span>
-                    </div>
-                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.5rem', borderRadius: '50%' }}>
-                      <PiggyBank size={20} className="text-warning" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2 mb-6">
-                    <div className="flex justify-between">
-                      <span style={{ color: 'var(--text-secondary)' }}>סך הכל לתשלום</span>
-                      <span style={{ fontWeight: 'bold' }}>{formatCurrency(totalAmount)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span style={{ color: 'var(--text-secondary)' }}>תשלומים</span>
-                      <span>{loan.total_payments} חודשים</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span style={{ color: 'var(--text-secondary)' }}>מתוכם ריבית:</span>
-                      <span style={{ color: 'var(--accent-warning)' }}>{formatCurrency(loan.interest_amount)}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between items-center mb-1 text-sm">
-                      <span style={{ color: 'var(--text-secondary)' }}>התקדמות</span>
-                      <span style={{ color: 'var(--accent-success)', fontWeight: 'bold' }}>{progress.toFixed(0)}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-success)' }}></div>
-                    </div>
-                    <div className="mt-2 text-xs text-secondary text-left">
-                      שולם: {formatCurrency(paidAmount)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-glass)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>שם הלוואה</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>קרן</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>סך ריבית</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>החזר חודשי</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>תשלומים</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>מועד חיוב</th>
+                  <th style={{ padding: '1rem', fontWeight: 500 }}>התקדמות</th>
+                  <th style={{ padding: '1rem', fontWeight: 500, textAlign: 'center' }}>פרטים</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loans.map(loan => {
+                  const totalAmount = Number(loan.principal_amount) + Number(loan.interest_amount);
+                  const monthlyPayment = totalAmount / loan.total_payments;
+                  const { paidAmount, progress } = getLoanProgress(loan.id, totalAmount);
+                  return (
+                    <tr
+                      key={loan.id}
+                      style={{ borderBottom: '1px solid var(--border-glass)', cursor: 'pointer', transition: 'background 0.2s' }}
+                      className="hover:bg-white/5"
+                      onClick={() => setSelectedLoan(loan)}
+                    >
+                      <td style={{ padding: '1rem', fontWeight: 'bold' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <PiggyBank size={16} className="text-warning" />
+                          {loan.name}
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem' }}>{formatCurrency(loan.principal_amount)}</td>
+                      <td style={{ padding: '1rem', color: 'var(--accent-warning)' }}>{formatCurrency(loan.interest_amount)}</td>
+                      <td style={{ padding: '1rem', fontWeight: 'bold', color: 'var(--accent-danger)' }}>{formatCurrency(monthlyPayment)}</td>
+                      <td style={{ padding: '1rem' }}>{loan.total_payments} חודשים</td>
+                      <td style={{ padding: '1rem' }}>
+                        {loan.billing_day ? (
+                          <span style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--accent-primary)', padding: '4px 10px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                            יום {loan.billing_day} לחודש
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>לא הוגדר</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem', minWidth: '120px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${progress}%`, height: '100%', background: 'var(--accent-success)' }}></div>
+                          </div>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--accent-success)', minWidth: '35px' }}>{progress.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem', textAlign: 'center' }}>
+                        <button
+                          style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: 'var(--accent-warning)', borderRadius: '6px', padding: '4px 12px', cursor: 'pointer', fontSize: '0.85rem' }}
+                          onClick={(e) => { e.stopPropagation(); setSelectedLoan(loan); }}
+                        >
+                          פרטים
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
       )}
@@ -394,7 +408,7 @@ export default function ExpensesLoans() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="form-group">
                   <label className="form-label">מספר תשלומים (חודשים)</label>
                   <input type="number" className="form-control" required min="1" max="360" placeholder="60"
@@ -404,6 +418,11 @@ export default function ExpensesLoans() {
                   <label className="form-label">תאריך תשלום ראשון</label>
                   <input type="date" className="form-control" required 
                     value={loanForm.start_date} onChange={e => setLoanForm({...loanForm, start_date: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">מועד חיוב (יום בחודש)</label>
+                  <input type="number" className="form-control" required min="1" max="31" placeholder="10"
+                    value={loanForm.billing_day} onChange={e => setLoanForm({...loanForm, billing_day: e.target.value})} />
                 </div>
               </div>
 

@@ -49,9 +49,23 @@ export default function LoanDetailsModal({ loan, onClose }) {
               <PiggyBank className="text-warning" />
               {loan.name}
             </h2>
-            <span style={{ color: 'var(--text-secondary)' }}>
-              הלוואה ל-{loan.total_payments} תשלומים, התחילה ב-{new Date(loan.start_date).toLocaleDateString('he-IL')}
-            </span>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                תחילת ההלוואה: {new Date(loan.start_date).toLocaleDateString('he-IL')}
+              </span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>•</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                {loan.total_payments} תשלומים
+              </span>
+              {loan.billing_day && (
+                <>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>•</span>
+                  <span style={{ color: 'var(--accent-primary)', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                    מועד חיוב: יום {loan.billing_day} לחודש
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={handleDelete} className="btn btn-outline" style={{ color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}>
